@@ -13,23 +13,21 @@ uris = [
   'http://corz.org/ip/',
 ]
 
-responses = {}
+ip_address = nil
 
 EventMachine.run do
   uris.each do |uri|
     http = EventMachine::HttpRequest.new(uri).get
     http.callback do
       if http.response_header.status == 200
-        ip_address = parse(http.response)
-        if responses.empty? || responses.value?(ip_address)
-          responses[uri] = ip_address
-        end
+        parsed_ip = parse(http.response)
+        puts "#{uri}\t#{parsed_ip}"
+
+        EventMachine.stop if parsed_ip == ip_address
+        ip_address = parsed_ip
       end
-      EventMachine.stop if responses.length == 2
     end
   end
 end
 
-responses.each do |uri, ip_address|
-  puts "#{uri}\t#{ip_address}"
-end
+puts "Verified IP address: #{ip_address}"
