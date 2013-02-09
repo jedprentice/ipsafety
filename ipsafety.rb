@@ -20,7 +20,10 @@ EventMachine.run do
     http = EventMachine::HttpRequest.new(uri).get
     http.callback do
       if http.response_header.status == 200
-        responses[uri] = parse(http.response)
+        ip_address = parse(http.response)
+        if responses.empty? || responses.value?(ip_address)
+          responses[uri] = ip_address
+        end
       end
       EventMachine.stop if responses.length == 2
     end
