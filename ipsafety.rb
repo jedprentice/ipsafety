@@ -1,30 +1,32 @@
-require 'net/http'
-
-# Makes a HTTP GET request with the given URI. If the request succeeds, i.e.,
-# we receive a 200 OK, the response is parsed and the result is returned as a
-# string. Otherwise, returns a string containing the error.
-def request(uri)
-  response = Net::HTTP.get_response(uri)
-  if response.class == Net::HTTPOK
-    parse(response)
-  else
-    "Bad response: #{response}"
-  end
-end
+require 'em-http-request'
 
 # At least one of the services returns HTML; use a regular expression to extract the
-# IP address from whatever we receive. Returns the IP address as a string
+# IP address from the given response string. Returns the IP address as a string
 def parse(response)
-  response.body.scan(/\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/)
+  response.scan(/\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/).first
 end
 
 uris = [
-  URI('http://checkip.amazonaws.com/'),
-  URI('http://checkip.dyndns.org/'),
-  URI('http://ifconfig.me/ip'),
-  URI('http://corz.org/ip/'),
+  'http://checkip.amazonaws.com/',
+  'http://checkip.dyndns.org/',
+  'http://ifconfig.me/ip',
+  'http://corz.org/ip/',
 ]
 
-uris.each do |uri|
-  puts request(uri)
+responses = {}
+
+EventMachine.run do
+  uris.each do |uri|
+    http = EventMachine::HttpRequest.new(uri).get
+    http.callback do
+      if http.response_header.status == 200
+        responses[uri] = parse(http.response)
+      end
+      EventMachine.stop if responses.length == 2
+    end
+  end
+end
+
+responses.each do |uri, ip_address|
+  puts "#{uri}\t#{ip_address}"
 end
